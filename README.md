@@ -4,7 +4,7 @@
 
 ## Overview
 
-1. Dairy Production and Consumtion Dashboard
+1. Dairy Production and Consumption Dashboard
    - This dashboard visualizes global dairy production and consumption data from the Food and Agriculture Organization (FAO), focusing on changes over time, maps of production and consumption, and relationships between production and consumption.
 2. Taylor Swift Music Sentiment Analysis Dashboard
    - This dashboard performs a sentiment analysis of Taylor Swift's music, comparing sentiment across two of her albums. It also visualizes relationships between song sentiment.
