@@ -1,0 +1,109 @@
+---
+title: "Untitled"
+author: "Erik Galauner"
+date: "2024-11-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, fig.width=15, fig.height=8}
+library(ggplot2)
+library(dplyr)
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(patchwork)
+
+world <- ne_countries(scale = "medium", returnclass = "sf") %>%
+  mutate(name_long = ifelse(name_long == "Russian Federation", "Russia", name_long)) %>%
+  filter(!name_long %in% c("Antarctica", "Greenland"))
+
+production_data <- read.csv("https://raw.githubusercontent.com/oconnellmj/sta309/main/milk-production-tonnes.csv", stringsAsFactors = FALSE) %>%
+  rename(Country = Entity, Production_tonnes = Milk.Production..tonnes.)
+
+consumption_data <- read.csv("https://raw.githubusercontent.com/oconnellmj/sta309/main/per-capita-milk-consumption.csv", stringsAsFactors = FALSE) %>%
+  rename(Country = Entity, Consumption_per_capita = Milk.consumption..kilograms.per.year.per.capita.)
+
+latest_production_year <- max(production_data$Year, na.rm = TRUE)
+latest_consumption_year <- max(consumption_data$Year, na.rm = TRUE)
+
+production_latest <- production_data %>% filter(Year == latest_production_year)
+consumption_latest <- consumption_data %>% filter(Year == latest_consumption_year)
+
+production_map_data <- world %>%
+  left_join(production_latest, by = c("name_long" = "Country"))
+
+production_map <- ggplot(production_map_data) +
+  geom_sf(aes(fill = Production_tonnes)) +
+  scale_fill_gradient2(
+    low = "white", mid = "lightblue", high = "darkblue",
+    midpoint = median(production_map_data$Production_tonnes, na.rm = TRUE),
+    na.value = "gray", name = "Production (Tonnes)"
+  ) +
+  labs(title = "Global Dairy Production (Latest Year)") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold"))
+
+consumption_map_data <- world %>%
+  left_join(consumption_latest, by = c("name_long" = "Country"))
+
+consumption_map <- ggplot(consumption_map_data) +
+  geom_sf(aes(fill = Consumption_per_capita)) +
+  scale_fill_gradient2(
+    low = "white", mid = "lightblue", high = "darkblue",
+    midpoint = median(consumption_map_data$Consumption_per_capita, na.rm = TRUE),
+    na.value = "gray", name = "Consumption (kg per capita)"
+  ) +
+  labs(title = "Global Dairy Consumption (Latest Year)") +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 16, face = "bold"))
+
+yearly_production <- production_data %>%
+  group_by(Year) %>%
+  summarize(Total_Production = sum(Production_tonnes, na.rm = TRUE))
+
+yearly_consumption <- consumption_data %>%
+  group_by(Year) %>%
+  summarize(Average_Consumption = mean(Consumption_per_capita, na.rm = TRUE))
+
+yearly_data <- left_join(yearly_production, yearly_consumption, by = "Year")
+scaling_factor <- max(yearly_data$Total_Production, na.rm = TRUE) / max(yearly_data$Average_Consumption, na.rm = TRUE)
+
+production_over_time <- ggplot(yearly_data, aes(x = Year)) +
+  geom_line(aes(y = Total_Production, color = "Total Production")) +
+  geom_line(aes(y = Average_Consumption * scaling_factor, color = "Average Consumption (scaled)")) +
+  scale_y_continuous(
+    labels = scales::comma,
+    sec.axis = sec_axis(~./scaling_factor, name = "Average Consumption (per capita)")
+  ) +
+  labs(
+    title = "Dairy Production and Consumption Over Time",
+    y = "Total Production (Tonnes)",
+    color = "Legend"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+latest_data <- production_latest %>%
+  inner_join(consumption_latest, by = "Country")
+
+production_vs_consumption <- ggplot(latest_data, aes(x = Production_tonnes, y = Consumption_per_capita)) +
+  geom_point(color = "blue", alpha = 0.7) +
+  geom_text(aes(label = Country), hjust = 0, vjust = 0, size = 3, check_overlap = TRUE) +
+  scale_x_log10(labels = scales::comma) +
+  scale_y_log10(labels = scales::comma) +
+  labs(
+    title = "Relationship Between Dairy Production and Consumption",
+    x = "Dairy Production (Tonnes)",
+    y = "Dairy Consumption (Per Capita)"
+  ) +
+  theme_minimal()
+
+dashboard <- (production_over_time + production_vs_consumption + production_map + consumption_map)
+
+dashboard
+```
+

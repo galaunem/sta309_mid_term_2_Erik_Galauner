@@ -1,0 +1,125 @@
+---
+title: "Problem 2 Mid-Term Exam #2"
+author: "Erik Galauner"
+date: "2024-11-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, fig.width=20, fig.height=9}
+library(readxl)
+library(tidyverse)
+library(tidytext)
+library(ggwordcloud)
+library(ggplot2)
+library(patchwork)
+
+genius_data <- read.csv("Taylor_Swift_Genius_Data.csv")
+
+album1 <- "Fearless"
+album2 <- "Red"
+
+lyrics_album1 <- genius_data %>% filter(Album == album1) %>% select(`Song.Name`, Lyrics)
+lyrics_album2 <- genius_data %>% filter(Album == album2) %>% select(`Song.Name`, Lyrics)
+
+data("stop_words")
+
+cleaned_lyrics_album1 <- lyrics_album1 %>%
+  unnest_tokens(word, Lyrics) %>%
+  anti_join(stop_words)
+
+cleaned_lyrics_album2 <- lyrics_album2 %>%
+  unnest_tokens(word, Lyrics) %>%
+  anti_join(stop_words)
+
+freq_album1 <- cleaned_lyrics_album1 %>% count(word, sort = TRUE)
+freq_album2 <- cleaned_lyrics_album2 %>% count(word, sort = TRUE)
+
+afinn <- get_sentiments("afinn")
+
+sentiments_album1 <- cleaned_lyrics_album1 %>%
+  inner_join(afinn, by = "word") %>%
+  group_by(word) %>%
+  summarise(average_sentiment = mean(value)) %>%
+  arrange(desc(abs(average_sentiment))) %>%
+  slice_head(n = 10)
+
+sentiments_album2 <- cleaned_lyrics_album2 %>%
+  inner_join(afinn, by = "word") %>%
+  group_by(word) %>%
+  summarise(average_sentiment = mean(value)) %>%
+  arrange(desc(abs(average_sentiment))) %>%
+  slice_head(n = 10)
+
+common_themes <- rbind(
+  data.frame(album = album1, sentiments_album1),
+  data.frame(album = album2, sentiments_album2)
+)
+
+wordcloud_album1 <- ggplot(freq_album1, aes(label = word, size = n, color = n)) +
+  geom_text_wordcloud_area() +
+  scale_size_area(max_size = 20) +
+  scale_color_gradient(low = "lightblue", high = "blue") +
+  theme_void() +
+  labs(title = paste("Word Cloud:", album1))
+
+wordcloud_album2 <- ggplot(freq_album2, aes(label = word, size = n, color = n)) +
+  geom_text_wordcloud_area() +
+  scale_size_area(max_size = 20) +
+  scale_color_gradient(low = "pink", high = "red") +
+  theme_void() +
+  labs(title = paste("Word Cloud:", album2))
+
+sentiment_boxplot <- ggplot(common_themes, aes(album, average_sentiment)) +
+  geom_boxplot() +
+  labs(title = "Sentiment Comparison Between Albums", x = "Album", y = "Sentiment Score") +
+  theme_minimal()
+
+common_themes_plot <- ggplot(common_themes, aes(x = reorder(word, average_sentiment), y = average_sentiment, fill = album)) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  labs(title = "Average Sentiment by Common Themes", x = "Word", y = "Average Sentiment") +
+  theme_minimal()
+
+sentiment_density <- ggplot(common_themes, aes(x = average_sentiment, fill = album)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Sentiment Score Distribution", x = "Sentiment Score", y = "Density") +
+  theme_minimal()
+
+top_words_album1 <- cleaned_lyrics_album1 %>%
+  inner_join(afinn, by = "word") %>%
+  group_by(word) %>%
+  summarise(sentiment = sum(value)) %>%
+  arrange(desc(abs(sentiment))) %>%
+  slice_head(n = 10)
+
+top_words_album2 <- cleaned_lyrics_album2 %>%
+  inner_join(afinn, by = "word") %>%
+  group_by(word) %>%
+  summarise(sentiment = sum(value)) %>%
+  arrange(desc(abs(sentiment))) %>%
+  slice_head(n = 10)
+
+top_words_combined <- rbind(
+  data.frame(album = album1, top_words_album1),
+  data.frame(album = album2, top_words_album2)
+)
+
+top_words_plot <- ggplot(top_words_combined, aes(x = reorder(word, sentiment), y = sentiment, fill = album)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~album, scales = "free") +
+  coord_flip() +
+  labs(title = "Top Positive and Negative Words", x = "Word", y = "Sentiment Score") +
+  theme_minimal()
+
+
+dashboard <- (wordcloud_album1 + wordcloud_album2 + sentiment_boxplot + common_themes_plot + sentiment_density + top_words_plot)
+
+dashboard
+```
+
+
+
