@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "STA 309 Mid Term 2 Problem 1"
 author: "Erik Galauner"
 date: "2024-11-15"
 output: html_document
