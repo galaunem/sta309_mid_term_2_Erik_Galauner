@@ -12,7 +12,7 @@
 
 ## Problem 1: Dairy Production and Consumption Dashbaord
 ### Objective 
-- The goal is to explore global dairy production and consumption data from 1961 t0 2022.
+- The goal is to explore global dairy production and consumption data from 1961 to 2022.
 - The dashboard includes:
   - A map of dairy production across the world
   - A map of dairy consumption across the world.
